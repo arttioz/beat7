@@ -1,4 +1,4 @@
-import { Application, BlurFilter, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { AudioEngine } from './audio';
 import { getKeyCodes, labelFor } from './keys';
 import type { Chart, Judgment, Note, PlayMode, PlayStats } from './types';
@@ -72,6 +72,8 @@ interface RtNote extends Note {
   brokenHold: boolean;
   /** judged as miss — keep the sprite falling (faded) instead of vanishing */
   missed: boolean;
+  /** long-note body drawn in static (scrolling) form — no per-frame redraw */
+  staticDrawn: boolean;
   body: Graphics | null;
 }
 
@@ -139,13 +141,14 @@ export class Game {
   private goldenBanner!: Text;
   private goldSparkTimer = 0;
 
-  // fire-glow + orbiting-particles treatment for effect text
+  // orbiting-particles treatment for the big banners (CLEAR! / GOLDEN TIME)
   private textFxG = new Graphics();
-  private judgeGlow!: Text;
-  private endingGlow!: Text;
-  private bannerGlow!: Text;
   private fxTime = 0;
   private emberTimer = 0;
+  // power-bar redraw cache: only rebuild when its visible state changes
+  private pbLit = -1;
+  private pbGolden = false;
+  private pbFlash = false;
 
   // ending sequence (smooth transition into results)
   private ending: 'none' | 'clear' | 'break' = 'none';
@@ -194,7 +197,7 @@ export class Game {
     await this.app.init({
       width, height,
       background: 0x0c0e1a,
-      antialias: true,
+      antialias: false, // measurably cheaper on weak GPUs; shapes are mostly rects
       resolution: Math.min(2, window.devicePixelRatio || 1),
       autoDensity: true,
     });
@@ -211,7 +214,7 @@ export class Game {
 
     this.notes = chart.notes.map((n) => ({
       ...n, headJudged: false, tailJudged: false,
-      holding: false, brokenHold: false, missed: false, body: null,
+      holding: false, brokenHold: false, missed: false, staticDrawn: false, body: null,
     }));
 
     window.addEventListener('keydown', this.keydown);
@@ -286,8 +289,6 @@ export class Game {
     });
     this.judgeText.anchor.set(0.5);
     this.judgeText.position.set(width / 2, this.hitY - 180);
-    this.judgeGlow = this.makeFireGlow(40);
-    this.app.stage.addChild(this.judgeGlow);
     this.app.stage.addChild(this.judgeText);
 
     this.timingText = new Text({
@@ -329,8 +330,6 @@ export class Game {
     this.goldenBanner.anchor.set(0.5);
     this.goldenBanner.position.set(width / 2, this.hitY - 320);
     this.goldenBanner.visible = false;
-    this.bannerGlow = this.makeFireGlow(36);
-    this.app.stage.addChild(this.bannerGlow);
     this.app.stage.addChild(this.goldenBanner);
 
     this.endingText = new Text({
@@ -343,63 +342,34 @@ export class Game {
     this.endingText.anchor.set(0.5);
     this.endingText.position.set(width / 2, height * 0.4);
     this.endingText.visible = false;
-    this.endingGlow = this.makeFireGlow(72);
-    this.app.stage.addChild(this.endingGlow);
     this.app.stage.addChild(this.endingText);
 
-    // orbiting particles render above all effect text
+    // orbiting particles render above the banners
     this.app.stage.addChild(this.textFxG);
 
     this.progress = new Graphics();
     this.app.stage.addChild(this.progress);
   }
 
-  /** blurred warm copy rendered behind a text — the "fire" layer */
-  private makeFireGlow(fontSize: number): Text {
-    const glow = new Text({
-      text: '',
-      style: new TextStyle({ fill: 0xff7a1a, fontSize, fontWeight: 'bold', fontFamily: 'monospace' }),
-    });
-    glow.anchor.set(0.5);
-    glow.filters = [new BlurFilter({ strength: 9 })];
-    glow.blendMode = 'add';
-    glow.visible = false;
-    return glow;
-  }
-
-  /** flickering flame sync: the glow breathes and shivers behind its text */
-  private syncFireGlow(glow: Text, target: Text): void {
-    const on = target.visible && target.alpha > 0.02 && target.text !== '';
-    glow.visible = on;
-    if (!on) return;
-    if (glow.text !== target.text) glow.text = target.text;
-    glow.position.copyFrom(target.position);
-    const flick =
-      0.6 + 0.25 * Math.sin(this.fxTime / 83) * Math.sin(this.fxTime / 47) + 0.15 * Math.sin(this.fxTime / 210);
-    glow.scale.set(target.scale.x * (1.08 + 0.06 * flick));
-    glow.alpha = target.alpha * (0.5 + 0.45 * flick);
-  }
-
   /** glowing dots circling a text on elliptical paths at varying speeds */
   private drawOrbits(cx: number, cy: number, r: number, alpha: number, seed: number): void {
     const ORBIT_COLORS = [0x7dffce, 0x4dd8ff, 0xb14dff, 0xff4d88, 0xffd700];
     const g = this.textFxG;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       const speed = 1.1 + (i % 3) * 0.5;
-      const a = (this.fxTime / 1000) * speed + i * (Math.PI / 4) + seed;
+      const a = (this.fxTime / 1000) * speed + i * (Math.PI / 3) + seed;
       const rx = r * (1 + 0.16 * Math.sin(this.fxTime / 640 + i * 1.7));
       const x = cx + Math.cos(a) * rx;
       const y = cy + Math.sin(a) * rx * 0.3;
       const c = ORBIT_COLORS[i % ORBIT_COLORS.length];
       const s = 1.8 + 1.1 * (0.5 + 0.5 * Math.sin(a * 2 + i));
-      g.circle(x, y, s * 2.4).fill({ color: c, alpha: alpha * 0.16 }); // halo
       g.circle(x, y, s).fill({ color: c, alpha });
     }
   }
 
   /** embers rising off burning text */
   private spawnEmbers(x: number, y: number, spread: number, count: number): void {
-    if (this.particles.length > 280) return;
+    if (this.particles.length > 150) return;
     const FIRE = [0xff6a00, 0xffa94d, 0xffd700, 0xff4d2a];
     for (let i = 0; i < count; i++) {
       const life = 380 + Math.random() * 320;
@@ -522,6 +492,14 @@ export class Game {
     this.pxPerMs = 0.45 * this.opts.speed;
     this.speedText.text = `${this.opts.speed}x`;
     this.speedAge = 0;
+    // long-note shapes are pre-built at a given scroll scale — rebuild them
+    for (const n of this.notes) {
+      if (n.body && n.len > 0) {
+        n.body.destroy();
+        n.body = null;
+        n.staticDrawn = false;
+      }
+    }
     this.opts.onSpeedChange?.(this.opts.speed);
   }
 
@@ -548,12 +526,21 @@ export class Game {
       this.judgeText.style.fill = s.color;
       this.timingText.text = '';
       this.judgeAge = 0;
-      if (j !== 'miss') this.spawnEmbers(this.judgeText.x, this.judgeText.y, this.judgeText.width, 3);
     }
   }
 
   /** audition: rainbow LED power gauge along the right side of the field */
   private drawPowerBar(): void {
+    const segs = 30;
+    const lit = Math.round((this.power / 100) * segs);
+    const low = this.power < 25;
+    const flash = low && Math.sin(performance.now() / 120) > 0;
+    // redraw only when something visible actually changed
+    if (lit === this.pbLit && this.golden === this.pbGolden && flash === this.pbFlash) return;
+    this.pbLit = lit;
+    this.pbGolden = this.golden;
+    this.pbFlash = flash;
+
     const g = this.powerG;
     g.clear();
     const x = this.laneX[0] + this.laneW * this.lanes + 12;
@@ -561,14 +548,11 @@ export class Game {
     const bottom = this.hitY - 8;
     const h = bottom - top;
     const w = 16;
-    const low = this.power < 25;
-    const frame = low && Math.sin(performance.now() / 120) > 0 ? 0xff3b30 : 0x232645;
+    const frame = flash ? 0xff3b30 : 0x232645;
     g.roundRect(x - 4, top - 4, w + 8, h + 8, 6).fill(0x11142a).stroke({ color: frame, width: 2 });
 
-    const segs = 30;
     const gap = 2;
     const segH = (h - (segs - 1) * gap) / segs;
-    const lit = Math.round((this.power / 100) * segs);
     for (let i = 0; i < segs; i++) {
       const yy = bottom - (i + 1) * segH - i * gap;
       if (i < lit) {
@@ -582,7 +566,7 @@ export class Game {
   }
 
   private explodeFirework(x: number, y: number, color: number): void {
-    const n = 26;
+    const n = 18;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
       const sp = 2.2 + Math.random() * 3.2;
@@ -692,7 +676,7 @@ export class Game {
     this.goldenBgG.clear();
     this.comboText.style.fill = 0xffe066;
     const fieldW = this.laneW * this.lanes;
-    for (let i = 0; i < 26 && this.particles.length < 280; i++) {
+    for (let i = 0; i < 20 && this.particles.length < 150; i++) {
       const life = 320 + Math.random() * 320;
       this.particles.push({
         kind: 'spark', x: this.laneX[0] + Math.random() * fieldW, y: Math.random() * this.hitY,
@@ -744,10 +728,10 @@ export class Game {
 
   /** spark burst + shockwave ring at the hit line */
   private spawnHitFx(lane: number, j: Judgment): void {
-    if (j === 'miss' || this.particles.length > 280) return;
+    if (j === 'miss' || this.particles.length > 150) return;
     const cx = this.laneX[lane] + this.laneW / 2;
     const color = j === 'cool' ? this.colors[lane] : JUDGE_STYLE[j].color;
-    const count = j === 'cool' ? 10 : 6;
+    const count = j === 'cool' ? 6 : 4;
     for (let i = 0; i < count; i++) {
       const a = Math.PI * (1 + Math.random()); // upward half
       const sp = 2 + Math.random() * 4;
@@ -766,9 +750,10 @@ export class Game {
 
   /** celebratory burst across the field on combo milestones */
   private spawnComboFx(): void {
+    if (this.particles.length > 150) return;
     for (let lane = 0; lane < this.lanes; lane++) {
       const cx = this.laneX[lane] + this.laneW / 2;
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {
         const life = 450 + Math.random() * 300;
         this.particles.push({
           kind: 'spark', x: cx, y: this.hitY,
@@ -812,9 +797,9 @@ export class Game {
     // sparkles while holding long notes
     this.holdSparkTimer -= dtMs;
     if (this.holdSparkTimer <= 0) {
-      this.holdSparkTimer = 70;
+      this.holdSparkTimer = 130;
       for (const n of this.notes) {
-        if (!n.holding || this.particles.length > 280) continue;
+        if (!n.holding || this.particles.length > 150) continue;
         const cx = this.laneX[n.lane] + this.laneW / 2;
         const life = 250 + Math.random() * 200;
         this.particles.push({
@@ -828,10 +813,10 @@ export class Game {
     // golden time: gentle gold confetti rain
     if (this.golden) {
       this.goldSparkTimer -= dtMs;
-      if (this.goldSparkTimer <= 0 && this.particles.length < 280) {
-        this.goldSparkTimer = 110;
+      if (this.goldSparkTimer <= 0 && this.particles.length < 150) {
+        this.goldSparkTimer = 180;
         const fieldW = this.laneW * this.lanes;
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 1; i++) {
           const life = 700 + Math.random() * 600;
           this.particles.push({
             kind: 'spark', x: this.laneX[0] + Math.random() * fieldW, y: -10,
@@ -924,26 +909,22 @@ export class Game {
     this.speedAge += dtMs;
     this.speedText.style.fill = this.speedAge < 800 ? 0xffe066 : 0x8a90c0;
 
-    // fire glow + orbiting particles on effect text
+    // orbiting particles + embers only on the big banners (cheap during play)
     this.fxTime += dtMs;
     this.textFxG.clear();
-    this.syncFireGlow(this.judgeGlow, this.judgeText);
-    this.syncFireGlow(this.endingGlow, this.endingText);
-    this.syncFireGlow(this.bannerGlow, this.goldenBanner);
-    if (this.judgeGlow.visible) {
-      this.drawOrbits(this.judgeText.x, this.judgeText.y, this.judgeText.width * 0.62 + 26, this.judgeText.alpha, 0);
-    }
-    if (this.endingGlow.visible) {
+    const endingOn = this.endingText.visible && this.endingText.alpha > 0.02;
+    const bannerOn = this.goldenBanner.visible;
+    if (endingOn) {
       this.drawOrbits(this.endingText.x, this.endingText.y, this.endingText.width * 0.58 + 30, this.endingText.alpha, 2.1);
     }
-    if (this.bannerGlow.visible) {
+    if (bannerOn) {
       this.drawOrbits(this.goldenBanner.x, this.goldenBanner.y, this.goldenBanner.width * 0.58 + 22, this.goldenBanner.alpha * 0.8, 4.4);
     }
     this.emberTimer -= dtMs;
     if (this.emberTimer <= 0) {
-      this.emberTimer = 140;
-      if (this.endingGlow.visible) this.spawnEmbers(this.endingText.x, this.endingText.y, this.endingText.width, 2);
-      if (this.bannerGlow.visible) this.spawnEmbers(this.goldenBanner.x, this.goldenBanner.y, this.goldenBanner.width, 1);
+      this.emberTimer = 240;
+      if (endingOn) this.spawnEmbers(this.endingText.x, this.endingText.y, this.endingText.width, 2);
+      if (bannerOn) this.spawnEmbers(this.goldenBanner.x, this.goldenBanner.y, this.goldenBanner.width, 1);
     }
 
     // audition HUD animation
@@ -1017,6 +998,7 @@ export class Game {
       if (visible && !n.body) {
         const g = new Graphics();
         this.drawNote(g, n);
+        n.staticDrawn = true;
         this.notesLayer.addChild(g);
         n.body = g;
       } else if (!visible && n.body) {
@@ -1028,11 +1010,21 @@ export class Game {
 
       const headY = this.hitY - (n.t - t) * this.pxPerMs;
       if (n.len > 0) {
-        const tailY = this.hitY - (n.t + n.len - t) * this.pxPerMs;
-        const anchorY = n.holding ? Math.min(this.hitY, headY) : headY;
-        n.body.position.set(0, 0);
-        n.body.clear();
-        this.drawLongNote(n.body, n, anchorY, tailY, n.holding);
+        if (n.holding) {
+          // only a held long note needs a per-frame redraw (head pinned to the line)
+          n.staticDrawn = false;
+          const tailY = this.hitY - (n.t + n.len - t) * this.pxPerMs;
+          n.body.position.set(0, 0);
+          n.body.clear();
+          this.drawLongNote(n.body, n, Math.min(this.hitY, headY), tailY, true);
+        } else {
+          if (!n.staticDrawn) {
+            n.body.clear();
+            this.drawNote(n.body, n);
+            n.staticDrawn = true;
+          }
+          n.body.position.set(0, headY); // scroll the pre-built shape — no redraw
+        }
       } else {
         n.body.position.set(0, headY);
         n.body.visible = headY < height + 30;
@@ -1041,12 +1033,20 @@ export class Game {
     }
   }
 
+  /** draw a note in local coordinates (head at y=0, LN body extending upward) */
   private drawNote(g: Graphics, n: RtNote): void {
-    if (n.len > 0) return; // long notes are redrawn each frame
     const x = this.laneX[n.lane] + 3;
     const w = this.laneW - 6;
-    g.roundRect(x, -9, w, 18, 5).fill(this.colors[n.lane]);
-    g.roundRect(x, -9, w, 6, 3).fill(0xffffff);
+    const color = this.colors[n.lane];
+    if (n.len > 0) {
+      const lenPx = n.len * this.pxPerMs;
+      g.roundRect(x + 8, -lenPx, w - 16, lenPx, 6).fill({ color, alpha: 0.45 });
+      g.roundRect(x, -lenPx - 7, w, 14, 5).fill({ color, alpha: 0.9 });
+      g.roundRect(x, -9, w, 18, 5).fill(color);
+    } else {
+      g.roundRect(x, -9, w, 18, 5).fill(color);
+      g.roundRect(x, -9, w, 6, 3).fill(0xffffff);
+    }
   }
 
   private drawLongNote(g: Graphics, n: RtNote, headY: number, tailY: number, holding: boolean): void {
