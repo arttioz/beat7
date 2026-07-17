@@ -5,6 +5,7 @@ import { downloadChart, parseChart } from './chart';
 import { renderDemoSong } from './demo';
 import { Editor } from './editor';
 import { Game } from './game';
+import { LANGS, applyTranslations, getLang, setLang, t } from './i18n';
 import { generateChart } from './generator';
 import type { Analysis, Chart, Difficulty, KeyCount, PlayMode, PlayStats } from './types';
 
@@ -25,6 +26,21 @@ const KEY_HINTS: Record<KeyCount, string> = {
   5: 'D F [Space] J K',
   7: 'S D F [Space] J K L',
 };
+
+// language picker: populate, restore saved/auto-detected choice, retranslate on change
+const langSel = $('#langSel') as HTMLSelectElement;
+for (const { code, name } of LANGS) {
+  const opt = document.createElement('option');
+  opt.value = code;
+  opt.textContent = name;
+  langSel.appendChild(opt);
+}
+langSel.value = getLang();
+langSel.addEventListener('change', () => {
+  setLang(langSel.value as Parameters<typeof setLang>[0]);
+  applyTranslations();
+});
+applyTranslations();
 
 const statusEl = $('#status');
 const infoEl = $('#songInfo');
@@ -74,7 +90,7 @@ async function loadSong(name: string, buffer: AudioBuffer, hash: string): Promis
   audio.setBuffer(buffer);
   chart = null;
   bar.style.display = 'block';
-  setStatus('Analyzing audio…');
+  setStatus(t('stAnalyzing'));
   try {
     analysis = loadCachedAnalysis(hash);
     if (!analysis) {
@@ -82,7 +98,7 @@ async function loadSong(name: string, buffer: AudioBuffer, hash: string): Promis
       saveCachedAnalysis(hash, analysis);
     }
     regenerate();
-    setStatus(`Ready — detected ${analysis.bpm} BPM.`);
+    setStatus(t('stReady', { bpm: analysis.bpm }));
   } catch (err) {
     setStatus(`Analysis failed: ${(err as Error).message}`, true);
   } finally {
@@ -120,7 +136,7 @@ $('#btnFile').addEventListener('click', () => $('#fileInput').click());
 ($('#fileInput') as HTMLInputElement).addEventListener('change', async (e) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  setStatus('Decoding audio…');
+  setStatus(t('stDecoding'));
   try {
     const bytes = await file.arrayBuffer();
     const hash = await sha256Hex(bytes);
@@ -151,7 +167,7 @@ $('#keySeg').addEventListener('click', (e) => {
   saveSettings();
   if (analysis) {
     regenerate();
-    setStatus(`Generated ${keyCount}K ${difficulty} chart.`);
+    setStatus(t('stGenerated', { mode: `${keyCount}K ${difficulty}` }));
   }
 });
 
@@ -162,13 +178,13 @@ $('#diffSeg').addEventListener('click', (e) => {
   syncModeUi();
   if (analysis) {
     regenerate();
-    setStatus(`Generated ${keyCount}K ${difficulty} chart.`);
+    setStatus(t('stGenerated', { mode: `${keyCount}K ${difficulty}` }));
   }
 });
 
 $('#btnRegen').addEventListener('click', () => {
   regenerate();
-  setStatus(`Regenerated ${difficulty} chart.`);
+  setStatus(t('stGenerated', { mode: `${keyCount}K ${difficulty}` }));
 });
 
 // --- export / import -------------------------------------------------------
@@ -195,7 +211,7 @@ $('#btnImport').addEventListener('click', () => $('#chartInput').click());
     } else if (!audio.buffer) {
       setStatus('Chart loaded. Now upload the matching MP3 to play.');
     } else {
-      setStatus('Chart imported.');
+      setStatus(t('stImported'));
     }
   } catch (err) {
     setStatus(`Import failed: ${(err as Error).message}`, true);
@@ -273,8 +289,8 @@ async function openEditor(): Promise<void> {
   ed.setOnChange(() => {
     if (!seeking) seekEl.value = String(Math.round(ed.timeMs));
     $('#edTime').textContent = fmtTime(ed.timeMs);
-    $('#edCount').textContent = `${ed.noteCount} notes`;
-    $('#edPlayBtn').textContent = ed.playing ? '⏸ Pause' : '▶ Play';
+    $('#edCount').textContent = `${ed.noteCount} ♪`;
+    $('#edPlayBtn').textContent = ed.playing ? t('edPause') : t('edPlay');
   });
   await ed.open(host, chart, audio, {
     onExit: (notes) => closeEditor(notes),
@@ -296,7 +312,7 @@ function closeEditor(notes: Chart['notes']): void {
   }
   $('#editor').classList.remove('on');
   $('#menu').classList.remove('off');
-  setStatus(`Chart edited — ${notes.length} notes.`);
+  setStatus(t('stEdited', { n: notes.length }));
 }
 
 $('#btnNew').addEventListener('click', () => {
@@ -314,7 +330,7 @@ $('#btnNew').addEventListener('click', () => {
   };
   showInfo();
   refreshButtons();
-  setStatus('New empty chart — record or place your own notes.');
+  setStatus(t('stNewChart'));
   void openEditor();
 });
 
@@ -340,7 +356,7 @@ const calStatus = $('#calStatus');
 let calibrator: Calibrator | null = null;
 
 $('#btnCalibrate').addEventListener('click', () => {
-  calStatus.textContent = 'Get ready… clicks start in 1s';
+  calStatus.textContent = t('calGetReady');
   calDlg.showModal();
   calibrator = new Calibrator();
   calibrator.onProgress = (n, needed, lastMs) => {
@@ -356,7 +372,7 @@ $('#btnCalibrate').addEventListener('click', () => {
     offsetEl.value = String(result.offsetMs);
     syncLabels();
     saveSettings();
-    setStatus(`Calibrated: offset set to ${result.offsetMs}ms from ${result.taps} taps.`);
+    setStatus(t('stCalibrated', { ms: result.offsetMs, taps: result.taps }));
   };
   calibrator.start();
 });
@@ -377,15 +393,15 @@ function showResults(stats: PlayStats): void {
   const gradeEl = $('#grade');
   const titleEl = $('#resultTitle');
   if (stats.droppedOut) {
-    titleEl.textContent = '💔 DROPPED OUT';
+    titleEl.textContent = t('droppedOut');
     gradeEl.textContent = 'OUT';
     gradeEl.style.color = '#ff5b6e';
   } else if (stats.goldenTime) {
-    titleEl.textContent = '✨ GOLDEN BUZZER ✨';
+    titleEl.textContent = t('goldenBuzzer');
     gradeEl.textContent = stats.grade;
     gradeEl.style.color = '#ffd700';
   } else {
-    titleEl.textContent = 'RESULT';
+    titleEl.textContent = t('result');
     gradeEl.textContent = stats.grade;
     gradeEl.style.color = '';
   }
@@ -448,7 +464,7 @@ async function loadFromUrl(url: string, name: string): Promise<void> {
 // (relative URLs so the build works when deployed under a subpath)
 void (async () => {
   try {
-    setStatus('Loading default song…');
+    setStatus(t('stLoadingDefault'));
     await loadFromUrl('default-song.mp3', 'Nene Royal — Zombie (AGT)');
   } catch {
     setStatus('');
@@ -464,7 +480,7 @@ void (async () => {
     syncModeUi();
     showInfo();
     refreshButtons();
-    setStatus(`Ready — default chart loaded (${parsed.notes.length} notes). Regenerate/difficulty makes a fresh auto-chart.`);
+    setStatus(t('stDefaultLoaded', { n: parsed.notes.length }));
   } catch { /* fall back to the auto-generated chart */ }
 })();
 

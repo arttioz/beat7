@@ -112,10 +112,11 @@
       display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
       padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
     }
-    #edToolbar select {
+    #edToolbar select, #langSel {
       background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
       border-radius: 8px; padding: 8px; font-size: 13px;
     }
+    #langSel { font-weight: 400; letter-spacing: 0; }
     #edCanvas { display: grid; place-items: center; flex: 1; }
     dialog {
       background: var(--panel); color: var(--ink); border: 1px solid var(--line);
@@ -145,14 +146,16 @@
   <div class="floaters" aria-hidden="true"><span>🎸</span><span>🎤</span><span>🎧</span><span>🥁</span><span>🎶</span><span>🎹</span></div>
 
   <div id="menu">
-    <h1>🎧 BEAT<span class="accent">7</span> <span class="eq"><i></i><i></i><i></i><i></i><i></i></span></h1>
-    <p class="sub">Rock 🎸 · Rap 🎤 · DJ 🎧 — ride the beat. Upload an MP3, auto-generate a chart, play. Keys: <span class="keys" id="keysHint">S D F [Space] J K L</span> · ESC quits</p>
+    <h1>🎧 BEAT<span class="accent">7</span> <span class="eq"><i></i><i></i><i></i><i></i><i></i></span>
+      <select id="langSel" title="Language" style="margin-left:auto"></select>
+    </h1>
+    <p class="sub"><span data-i18n="tagline">Rock 🎸 · Rap 🎤 · DJ 🎧 — ride the beat. Upload an MP3, auto-generate a chart, play. Keys:</span> <span class="keys" id="keysHint">S D F [Space] J K L</span> · <span data-i18n="escQuits">ESC quits</span></p>
 
     <div class="card">
-      <h2>🎵 1 · Song</h2>
+      <h2>🎵 <span data-i18n="song">1 · Song</span></h2>
       <div class="row">
-        <button id="btnFile">Upload MP3</button>
-        <button id="btnDemo" class="ghost">Use built-in demo song</button>
+        <button id="btnFile" data-i18n="uploadMp3">Upload MP3</button>
+        <button id="btnDemo" class="ghost" data-i18n="demoSong">Use built-in demo song</button>
         <input type="file" id="fileInput" accept="audio/*" class="hidden" />
       </div>
       <div id="progressBar"><div></div></div>
@@ -161,7 +164,7 @@
     </div>
 
     <div class="card">
-      <h2>🎼 2 · Chart</h2>
+      <h2>🎼 <span data-i18n="chart">2 · Chart</span></h2>
       <div class="row" style="margin-bottom:12px">
         <div class="seg" id="keySeg">
           <button data-k="4">4K</button>
@@ -169,52 +172,52 @@
           <button data-k="7" class="on">7K</button>
         </div>
         <div class="seg" id="diffSeg">
-          <button data-d="easy">Easy</button>
-          <button data-d="medium" class="on">Medium</button>
-          <button data-d="hard">Hard</button>
+          <button data-d="easy" data-i18n="diffEasy">Easy</button>
+          <button data-d="medium" class="on" data-i18n="diffMedium">Medium</button>
+          <button data-d="hard" data-i18n="diffHard">Hard</button>
         </div>
-        <button id="btnRegen" class="ghost" disabled>Regenerate</button>
+        <button id="btnRegen" class="ghost" disabled data-i18n="regenerate">Regenerate</button>
       </div>
       <div class="row">
-        <button id="btnNew" class="ghost" disabled>🆕 New chart</button>
-        <button id="btnEdit" class="ghost" disabled>✏️ Edit chart</button>
-        <button id="btnExport" class="ghost" disabled>Export chart</button>
-        <button id="btnImport" class="ghost">Import chart</button>
+        <button id="btnNew" class="ghost" disabled data-i18n="newChart">🆕 New chart</button>
+        <button id="btnEdit" class="ghost" disabled data-i18n="editChart">✏️ Edit chart</button>
+        <button id="btnExport" class="ghost" disabled data-i18n="exportChart">Export chart</button>
+        <button id="btnImport" class="ghost" data-i18n="importChart">Import chart</button>
         <input type="file" id="chartInput" accept=".json,application/json" class="hidden" />
       </div>
-      <p class="hint"><b>✏️ Edit chart</b>: place, drag and record your own notes — or start clean with <b>🆕 New chart</b>.</p>
+      <p class="hint" data-i18n="editHint"><b>✏️ Edit chart</b>: place, drag and record your own notes — or start clean with <b>🆕 New chart</b>.</p>
     </div>
 
     <div class="card">
-      <h2>🕹️ 3 · Play</h2>
+      <h2>🕹️ <span data-i18n="play">3 · Play</span></h2>
       <div class="row" style="margin-bottom:12px">
         <div class="seg" id="modeSeg">
-          <button data-m="chill">🧘 Chill</button>
-          <button data-m="audition" class="on">🎤 Audition</button>
+          <button data-m="chill" data-i18n="chill">🧘 Chill</button>
+          <button data-m="audition" class="on" data-i18n="audition">🎤 Audition</button>
         </div>
       </div>
-      <p class="hint" style="margin:-4px 0 12px"><b>🧘 Chill</b>: just vibe — no power bar, no fail. <b>🎤 Audition</b>: hits fill the side power bar, misses drain it — empty means you're dropped out. Keep a hot streak to hit the <b style="color:#ffd700">GOLDEN BUZZER</b>: golden stage &amp; double score!</p>
+      <p class="hint" style="margin:-4px 0 12px" data-i18n="modeHint"><b>🧘 Chill</b>: just vibe — no power bar, no fail. <b>🎤 Audition</b>: hits fill the side power bar, misses drain it — empty means you're dropped out. Keep a hot streak to hit the <b style="color:#ffd700">GOLDEN BUZZER</b>: golden stage &amp; double score!</p>
       <div class="row" style="margin-bottom:12px">
-        <label class="opt">Speed <input type="range" id="speed" min="0.5" max="6" step="0.25" value="2.5" /> <span class="val" id="speedVal">2.5x</span></label>
-        <label class="opt">Offset <input type="range" id="offset" min="-300" max="300" step="5" value="0" /> <span class="val" id="offsetVal">0 ms</span></label>
-        <label class="opt"><input type="checkbox" id="autoplay" /> Autoplay</label>
+        <label class="opt"><span data-i18n="speed">Speed</span> <input type="range" id="speed" min="0.5" max="6" step="0.25" value="2.5" /> <span class="val" id="speedVal">2.5x</span></label>
+        <label class="opt"><span data-i18n="offset">Offset</span> <input type="range" id="offset" min="-300" max="300" step="5" value="0" /> <span class="val" id="offsetVal">0 ms</span></label>
+        <label class="opt"><input type="checkbox" id="autoplay" /> <span data-i18n="autoplay">Autoplay</span></label>
       </div>
       <div class="row">
-        <button id="btnPlay" class="big" disabled>▶ PLAY</button>
-        <button id="btnCalibrate" class="ghost">🎯 Calibrate offset</button>
+        <button id="btnPlay" class="big" disabled data-i18n="playBtn">▶ PLAY</button>
+        <button id="btnCalibrate" class="ghost" data-i18n="calibrate">🎯 Calibrate offset</button>
       </div>
-      <p class="hint">If hits feel off (headphones, Bluetooth), run calibration once: tap any key along with the clicks and the offset is set for you. In game, GOOD/BAD hits show <b>EARLY</b>/<b>LATE</b>, and <b>↑/↓</b> changes note speed live.</p>
+      <p class="hint" data-i18n="calHint">If hits feel off (headphones, Bluetooth), run calibration once: tap any key along with the clicks and the offset is set for you. In game, GOOD/BAD hits show <b>EARLY</b>/<b>LATE</b>, and <b>↑/↓</b> changes note speed live.</p>
     </div>
   </div>
 
   <div id="game">
-    <button id="btnStop">■ Stop</button>
+    <button id="btnStop" data-i18n="stop">■ Stop</button>
     <div id="gameCanvas"></div>
   </div>
 
   <div id="editor">
     <div id="edToolbar">
-      <button id="edBack" class="ghost">✓ Done</button>
+      <button id="edBack" class="ghost" data-i18n="edDone">✓ Done</button>
       <button id="edPlayBtn">▶ Play</button>
       <select id="edRate">
         <option value="1" selected>1x</option>
@@ -228,14 +231,14 @@
       </select>
       <button id="edZoomOut" class="ghost">−</button>
       <button id="edZoomIn" class="ghost">+</button>
-      <label class="opt" style="color:#ff8aa8"><input type="checkbox" id="edRecord" /> ● Record</label>
-      <button id="edUndo" class="ghost">↩ Undo</button>
+      <label class="opt" style="color:#ff8aa8"><input type="checkbox" id="edRecord" /> <span data-i18n="edRecord">● Record</span></label>
+      <button id="edUndo" class="ghost" data-i18n="edUndo">↩ Undo</button>
       <span id="edTime" class="val" style="min-width:90px">0:00.000</span>
       <input type="range" id="edSeek" min="0" max="1000" value="0" style="flex:1;min-width:120px" />
       <span id="edCount" class="val"></span>
-      <button id="edSave" class="ghost">⬇ Download</button>
+      <button id="edSave" class="ghost" data-i18n="edDownload">⬇ Download</button>
     </div>
-    <p class="hint" style="text-align:center;margin:6px 0">
+    <p class="hint" style="text-align:center;margin:6px 0" data-i18n="edHint">
       Click empty lane = add note (keep dragging up = long note) · drag note = move · drag ● tail = resize · right-click = delete ·
       <b>Record</b>: play + press lane keys (hold = long note) · Enter = play/pause · wheel = scroll · Ctrl+Z = undo · Esc = done
     </p>
@@ -246,26 +249,26 @@
     <h2 id="resultTitle" style="margin:0;text-align:center">RESULT</h2>
     <div id="grade">A</div>
     <div class="stats">
-      <div><span class="k">Score</span><span id="rScore">0</span></div>
-      <div><span class="k">Accuracy</span><span id="rAcc">0%</span></div>
+      <div><span class="k" data-i18n="score">Score</span><span id="rScore">0</span></div>
+      <div><span class="k" data-i18n="accuracy">Accuracy</span><span id="rAcc">0%</span></div>
       <div><span class="k">Cool</span><span id="rCool">0</span></div>
       <div><span class="k">Good</span><span id="rGood">0</span></div>
       <div><span class="k">Bad</span><span id="rBad">0</span></div>
       <div><span class="k">Miss</span><span id="rMiss">0</span></div>
-      <div><span class="k">Max combo</span><span id="rCombo">0</span></div>
+      <div><span class="k" data-i18n="maxCombo">Max combo</span><span id="rCombo">0</span></div>
     </div>
     <div class="row" style="justify-content:center">
-      <button id="btnRetry">Retry</button>
-      <button id="btnBack" class="ghost">Back to menu</button>
+      <button id="btnRetry" data-i18n="retry">Retry</button>
+      <button id="btnBack" class="ghost" data-i18n="backToMenu">Back to menu</button>
     </div>
   </dialog>
 
   <dialog id="calDlg">
-    <h2 style="margin:0 0 10px">🎯 Offset calibration</h2>
-    <p class="hint" style="margin-top:0">Tap <b>any key</b> exactly on each click. The first 4 clicks are warm-up. 12 taps needed.</p>
+    <h2 style="margin:0 0 10px" data-i18n="calTitle">🎯 Offset calibration</h2>
+    <p class="hint" style="margin-top:0" data-i18n="calInstr">Tap <b>any key</b> exactly on each click. The first 4 clicks are warm-up. 12 taps needed.</p>
     <div id="calStatus" style="font-size:28px;text-align:center;margin:18px 0;font-family:monospace">Get ready…</div>
     <div class="row" style="justify-content:flex-end">
-      <button id="btnCalCancel" class="ghost">Cancel</button>
+      <button id="btnCalCancel" class="ghost" data-i18n="cancel">Cancel</button>
     </div>
   </dialog>
 
