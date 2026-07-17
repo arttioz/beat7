@@ -39,6 +39,7 @@ export class Calibrator {
       this.scheduleClick(t, i % 4 === 0);
     }
     window.addEventListener('keydown', this.keydown);
+    window.addEventListener('pointerdown', this.pointertap);
     // stop listening shortly after the last click
     setTimeout(() => this.finish(), (1 + TOTAL_CLICKS * CLICK_INTERVAL + 0.6) * 1000);
   }
@@ -46,6 +47,7 @@ export class Calibrator {
   cancel(): void {
     this.done = true;
     window.removeEventListener('keydown', this.keydown);
+    window.removeEventListener('pointerdown', this.pointertap);
     void this.ctx?.close();
     this.ctx = null;
   }
@@ -63,12 +65,22 @@ export class Calibrator {
   }
 
   private keydown = (e: KeyboardEvent): void => {
-    if (!this.ctx || this.done || e.repeat) return;
-    if (e.code === 'Escape') return;
+    if (e.repeat || e.code === 'Escape') return;
     e.preventDefault();
+    this.registerTap(e.timeStamp);
+  };
+
+  /** touch screens: tapping anywhere counts as a tap (mouse uses keys/buttons) */
+  private pointertap = (e: PointerEvent): void => {
+    if (e.pointerType === 'mouse') return;
+    this.registerTap(e.timeStamp);
+  };
+
+  private registerTap(eventTimeStamp: number): void {
+    if (!this.ctx || this.done) return;
     // same clock semantics as gameplay: context time minus reported latency,
     // corrected by how long the event waited before we handled it
-    const handlerDelaySec = Math.max(0, Math.min(0.1, (performance.now() - e.timeStamp) / 1000));
+    const handlerDelaySec = Math.max(0, Math.min(0.1, (performance.now() - eventTimeStamp) / 1000));
     const tapTime = this.ctx.currentTime - this.latencySec - handlerDelaySec;
     // nearest click
     let best = Infinity;
@@ -87,6 +99,7 @@ export class Calibrator {
     if (this.done) return;
     this.done = true;
     window.removeEventListener('keydown', this.keydown);
+    window.removeEventListener('pointerdown', this.pointertap);
     void this.ctx?.close();
     this.ctx = null;
     if (this.deltas.length < 4) {
