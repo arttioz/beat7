@@ -128,6 +128,10 @@ export class Game {
   private power = POWER_START;
   private powerG = new Graphics();
   private golden = false;
+  /** golden buzzer was reached at least once this run (for the results screen) */
+  private everGolden = false;
+  /** combo value when golden last broke — a fresh streak is needed to re-trigger */
+  private goldenFloor = 0;
   private goldenAge = 0;
   private goldenComboTarget = 60;
   private pendingDropOut = false;
@@ -534,7 +538,9 @@ export class Game {
     if (this.opts.mode === 'audition') {
       this.power = Math.max(0, Math.min(100, this.power + POWER_GAIN[j]));
       if (this.power <= 0) this.pendingDropOut = true;
-      if (!this.golden && this.combo >= this.goldenComboTarget) this.triggerGolden();
+      // golden time only survives clean play: a BAD or MISS breaks it
+      if (this.golden && (j === 'bad' || j === 'miss')) this.endGolden();
+      if (!this.golden && this.combo - this.goldenFloor >= this.goldenComboTarget) this.triggerGolden();
     }
     if (!silent || j === 'miss') {
       const s = JUDGE_STYLE[j];
@@ -678,9 +684,28 @@ export class Game {
     }
   }
 
-  /** audition: GOLDEN BUZZER — golden stage + double score for the rest of the song */
+  /** golden broke (BAD/MISS): the gold rains away and a fresh streak is required */
+  private endGolden(): void {
+    this.golden = false;
+    this.goldenFloor = this.combo;
+    this.goldenBanner.visible = false;
+    this.goldenBgG.clear();
+    this.comboText.style.fill = 0xffe066;
+    const fieldW = this.laneW * this.lanes;
+    for (let i = 0; i < 26 && this.particles.length < 280; i++) {
+      const life = 320 + Math.random() * 320;
+      this.particles.push({
+        kind: 'spark', x: this.laneX[0] + Math.random() * fieldW, y: Math.random() * this.hitY,
+        vx: (Math.random() - 0.5) * 2, vy: 1.5 + Math.random() * 2.5,
+        life, maxLife: life, color: GOLD, size: 1.5 + Math.random() * 2,
+      });
+    }
+  }
+
+  /** audition: GOLDEN BUZZER — golden stage + double score while the streak stays clean */
   private triggerGolden(): void {
     this.golden = true;
+    this.everGolden = true;
     this.goldenAge = 0;
     this.goldenBanner.visible = true;
     // gold confetti everywhere
@@ -1058,7 +1083,7 @@ export class Game {
       accuracy: Math.round(accuracy * 1000) / 10,
       grade,
       droppedOut: false,
-      goldenTime: this.golden,
+      goldenTime: this.everGolden,
     };
   }
 }
