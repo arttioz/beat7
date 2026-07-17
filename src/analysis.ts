@@ -32,8 +32,9 @@ export async function analyze(
     hi: Math.min(nBins - 1, Math.ceil(b.hi / binHz)),
   }));
 
-  // per-band spectral flux + total flux envelope
+  // per-band spectral flux + energy envelopes, total flux, loudness
   const flux: Float32Array[] = BANDS.map(() => new Float32Array(nFrames));
+  const bandEnergy: Float32Array[] = BANDS.map(() => new Float32Array(nFrames));
   const totalFlux = new Float32Array(nFrames);
   const rms = new Float32Array(nFrames);
 
@@ -58,11 +59,14 @@ export async function analyze(
     }
     for (let b = 0; b < BANDS.length; b++) {
       let fl = 0;
+      let en = 0;
       for (let k = bandBins[b].lo; k <= bandBins[b].hi; k++) {
         const d = curMag[k] - prevMag[k];
         if (d > 0) fl += d;
+        en += curMag[k];
       }
       flux[b][f] = fl;
+      bandEnergy[b][f] = en;
       totalFlux[f] += fl;
     }
     const tmp = prevMag; prevMag = curMag; curMag = tmp;
@@ -78,6 +82,12 @@ export async function analyze(
     pickOnsets(flux[b], BANDS[b].name, hopMs, onsets);
   }
   onsets.sort((a, z) => a.tMs - z.tMs);
+
+  // measure how long each sound keeps ringing (long vocals, held solo notes)
+  const bandIdx: Record<Band, number> = { bass: 0, mid: 1, high: 2 };
+  for (const o of onsets) {
+    o.sustainMs = measureSustain(bandEnergy[bandIdx[o.band]], Math.round(o.tMs / hopMs), hopMs);
+  }
 
   const { bpm, beatOffsetMs } = detectBpm(totalFlux, hopMs);
   const durationMs = (buffer.length / sr) * 1000;
@@ -130,8 +140,35 @@ function pickOnsets(env: Float32Array, band: Band, hopMs: number, out: Onset[]):
     if (strength < 1.35) continue;
     if (i - lastPick < minGapFrames) continue;
     lastPick = i;
-    out.push({ tMs: i * hopMs, band, strength });
+    out.push({ tMs: i * hopMs, band, strength, sustainMs: 0 });
   }
+}
+
+/**
+ * From an onset frame, walk forward while the band's energy stays above a
+ * fraction of its attack level — the length of the sustained sound.
+ */
+function measureSustain(env: Float32Array, startF: number, hopMs: number): number {
+  const n = env.length;
+  if (startF < 0 || startF >= n) return 0;
+  let base = 0;
+  const baseEnd = Math.min(n, startF + 4);
+  for (let f = startF; f < baseEnd; f++) base = Math.max(base, env[f]);
+  if (base <= 0) return 0;
+  const thr = base * 0.4;
+  const maxF = Math.min(n, startF + Math.ceil(5000 / hopMs)); // cap at 5s
+  let f = startF + 1;
+  let grace = 0;
+  while (f < maxF) {
+    if (env[f] >= thr) {
+      grace = 0;
+    } else {
+      grace++;
+      if (grace > 3) break; // allow tiny dips (vibrato) but stop on real decay
+    }
+    f++;
+  }
+  return Math.round((f - grace - startF) * hopMs);
 }
 
 function detectBpm(env: Float32Array, hopMs: number): { bpm: number; beatOffsetMs: number } {

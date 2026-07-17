@@ -32,6 +32,8 @@ export interface Onset {
   band: Band;
   /** ratio of flux to local average — bigger = more prominent */
   strength: number;
+  /** how long the sound keeps ringing after the onset (long vocals/solo notes) */
+  sustainMs: number;
 }
 
 export interface Section {

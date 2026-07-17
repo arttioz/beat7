@@ -109,9 +109,10 @@ async function loadSong(name: string, buffer: AudioBuffer, hash: string): Promis
 }
 
 // analysis is deterministic per file, so cache it by audio hash
+// (v2: includes per-onset sustain data for long-note generation)
 function loadCachedAnalysis(hash: string): Analysis | null {
   try {
-    const raw = localStorage.getItem(`beat7-analysis-${hash}`);
+    const raw = localStorage.getItem(`beat7-analysis2-${hash}`);
     if (!raw) return null;
     const a = JSON.parse(raw) as Analysis;
     return Array.isArray(a.onsets) && typeof a.bpm === 'number' ? a : null;
@@ -119,8 +120,10 @@ function loadCachedAnalysis(hash: string): Analysis | null {
 }
 
 function saveCachedAnalysis(hash: string, a: Analysis): void {
-  try { localStorage.setItem(`beat7-analysis-${hash}`, JSON.stringify(a)); }
-  catch { /* storage full — analysis will simply rerun next time */ }
+  try {
+    localStorage.removeItem(`beat7-analysis-${hash}`); // drop v1 cache
+    localStorage.setItem(`beat7-analysis2-${hash}`, JSON.stringify(a));
+  } catch { /* storage full — analysis will simply rerun next time */ }
 }
 
 function regenerate(): void {

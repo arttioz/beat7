@@ -44,7 +44,8 @@ function allowedLanes(keys: KeyCount, difficulty: Difficulty): number[] {
   return Array.from({ length: keys }, (_, i) => i);
 }
 
-interface Slot { tMs: number; bands: Map<Band, number>; }
+interface BandHit { strength: number; sustainMs: number; }
+interface Slot { tMs: number; bands: Map<Band, BandHit>; }
 
 export function generateChart(
   analysis: Analysis,
@@ -88,13 +89,17 @@ export function generateChart(
       slot = { tMs, bands: new Map() };
       slots.set(key, slot);
     }
-    slot.bands.set(o.band, Math.max(slot.bands.get(o.band) ?? 0, o.strength));
+    const prev = slot.bands.get(o.band);
+    slot.bands.set(o.band, {
+      strength: Math.max(prev?.strength ?? 0, o.strength),
+      sustainMs: Math.max(prev?.sustainMs ?? 0, o.sustainMs ?? 0),
+    });
   }
 
   // 2. density filtering: strongest slots win inside each 1s window
   const ordered = [...slots.values()].sort((a, b) => a.tMs - b.tMs);
   const kept: Slot[] = [];
-  const strengthOf = (s: Slot) => Math.max(...s.bands.values());
+  const strengthOf = (s: Slot) => Math.max(...[...s.bands.values()].map((h) => h.strength));
   for (const slot of ordered) {
     const windowStart = slot.tMs - 1000;
     const inWindow = kept.filter((k) => k.tMs > windowStart);
@@ -146,27 +151,38 @@ export function generateChart(
     return -1;
   };
 
+  // where the next hit of the same band lands — a long note must end before it
+  const nextSameBand = (from: number, band: Band): number => {
+    for (let j = from + 1; j < kept.length; j++) {
+      if (kept[j].bands.has(band)) return kept[j].tMs;
+    }
+    return Infinity;
+  };
+
   for (let i = 0; i < kept.length; i++) {
     const slot = kept[i];
-    const bands = [...slot.bands.entries()].sort((a, b) => b[1] - a[1]);
+    const bands = [...slot.bands.entries()].sort((a, b) => b[1].strength - a[1].strength);
     const chordSize = Math.min(maxChord, bands.length);
     const taken = new Set<number>();
     for (let c = 0; c < chordSize; c++) {
-      const [band, strength] = bands[c];
-      if (c > 0 && strength < cfg.strengthMin * 1.25) break; // extra chord notes need to earn it
+      const [band, hit] = bands[c];
+      if (c > 0 && hit.strength < cfg.strengthMin * 1.25) break; // extra chord notes need to earn it
       const lane = pickLane(band, slot.tMs, taken);
       if (lane < 0) continue;
       taken.add(lane);
-      lastLaneUse[lane] = slot.tMs;
 
-      // long note: strong bass hit with a big gap before the next slot
+      // long note: the sound actually rings out (long vocal / held solo note)
       let len = 0;
-      if (cfg.longNotes && band === 'bass' && strength > 2.2) {
-        const next = kept[i + 1];
-        const gap = next ? next.tMs - slot.tMs : Infinity;
-        if (gap >= beatMs * 2) len = Math.round(beatMs);
+      if (cfg.longNotes && hit.sustainMs >= beatMs * 0.75) {
+        len = Math.min(hit.sustainMs, beatMs * 4);
+        // release before the same sound's next hit
+        len = Math.min(len, nextSameBand(i, band) - slot.tMs - Math.max(90, gridMs * 0.5));
+        len = Math.round(len / gridMs) * gridMs; // musical lengths
+        if (len < beatMs * 0.5) len = 0;
       }
-      notes.push({ t: slot.tMs, lane, len });
+      // the lane stays busy while the note is held, so other slots use free lanes
+      lastLaneUse[lane] = slot.tMs + len;
+      notes.push({ t: slot.tMs, lane, len: Math.round(len) });
     }
   }
 
