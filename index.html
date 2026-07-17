@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Beat7 — O2Jam-style rhythm game</title>
+  <style>
+    :root {
+      --bg: #0c0e1a; --panel: #151830; --panel2: #1d2142; --ink: #e6e8ff;
+      --muted: #8a90c0; --accent: #ff4d88; --accent2: #5b8dff; --ok: #7dffce;
+      --line: #262b52;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(-45deg, #0c0e1a, #1c0a2e, #0a1430, #24081f);
+      background-size: 400% 400%;
+      background-attachment: fixed;
+      animation: bgShift 16s ease infinite;
+    }
+    @keyframes bgShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    /* floating music icons */
+    .floaters { pointer-events: none; }
+    .floaters span {
+      position: fixed; bottom: -80px; font-size: 40px; opacity: 0.13; z-index: 0;
+      animation: floatUp linear infinite;
+    }
+    .floaters span:nth-child(1) { left: 6%;  animation-duration: 19s; }
+    .floaters span:nth-child(2) { left: 18%; animation-duration: 23s; animation-delay: 4s; }
+    .floaters span:nth-child(3) { left: 32%; animation-duration: 17s; animation-delay: 9s; }
+    .floaters span:nth-child(4) { left: 58%; animation-duration: 25s; animation-delay: 2s; }
+    .floaters span:nth-child(5) { left: 74%; animation-duration: 20s; animation-delay: 12s; }
+    .floaters span:nth-child(6) { left: 88%; animation-duration: 22s; animation-delay: 6s; }
+    @keyframes floatUp {
+      from { transform: translateY(0) rotate(-12deg); }
+      to   { transform: translateY(-118vh) rotate(14deg); }
+    }
+    #menu { max-width: 640px; margin: 0 auto; padding: 28px 20px 60px; position: relative; z-index: 1; }
+    h1 { font-size: 32px; margin: 0 0 4px; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+    h1 .accent { color: var(--accent); animation: neon 2.2s ease-in-out infinite; }
+    @keyframes neon {
+      0%, 100% { text-shadow: 0 0 6px #ff4d88aa, 0 0 18px #ff4d8855; }
+      50% { text-shadow: 0 0 12px #ff4d88, 0 0 34px #ff4d88aa, 0 0 60px #ff4d8866; }
+    }
+    .eq { display: inline-flex; gap: 3px; align-items: flex-end; height: 24px; }
+    .eq i {
+      width: 5px; border-radius: 2px;
+      background: linear-gradient(180deg, var(--accent), var(--accent2));
+      animation: eqBounce 0.9s ease-in-out infinite;
+    }
+    .eq i:nth-child(1) { animation-delay: 0s; }
+    .eq i:nth-child(2) { animation-delay: 0.12s; }
+    .eq i:nth-child(3) { animation-delay: 0.24s; }
+    .eq i:nth-child(4) { animation-delay: 0.36s; }
+    .eq i:nth-child(5) { animation-delay: 0.48s; }
+    @keyframes eqBounce { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+    .card {
+      background: rgba(21, 24, 48, 0.82); border: 1px solid var(--line);
+      border-radius: 14px; padding: 18px; margin-bottom: 16px;
+      backdrop-filter: blur(4px);
+      transition: border-color 0.3s;
+    }
+    .card:hover { border-color: #3a3f6e; }
+    .card h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button {
+      background: var(--accent); color: #fff; border: 0; border-radius: 10px;
+      padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { opacity: 0.35; cursor: default; }
+    button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); }
+    button.big {
+      font-size: 17px; padding: 13px 26px;
+      background: linear-gradient(135deg, #ff4d88, #b14dff);
+      animation: btnPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes btnPulse {
+      0%, 100% { box-shadow: 0 0 10px #ff4d8850; }
+      50% { box-shadow: 0 0 26px #ff4d88aa, 0 0 50px #b14dff44; }
+    }
+    .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .seg button { border-radius: 0; background: var(--panel2); color: var(--muted); font-weight: 600; }
+    .seg button.on { background: var(--accent2); color: #fff; }
+    label.opt { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    input[type="range"] { accent-color: var(--accent); }
+    .val { font-variant-numeric: tabular-nums; color: var(--ink); min-width: 52px; display: inline-block; }
+    #songInfo { font-size: 13px; color: var(--muted); line-height: 1.7; }
+    #songInfo b { color: var(--ink); }
+    #status { font-size: 13px; color: var(--ok); min-height: 18px; margin-top: 8px; }
+    #progressBar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-top: 10px; display: none; }
+    #progressBar > div { height: 100%; width: 0%; background: var(--accent2); transition: width 0.15s; }
+    .keys { font-family: monospace; color: var(--accent2); }
+    #game { display: none; place-items: start center; min-height: 100vh; position: relative; z-index: 1; }
+    #game.on { display: grid; }
+    #gameCanvas canvas { display: block; }
+    #btnStop {
+      position: fixed; top: 14px; left: 14px; z-index: 10;
+      background: rgba(29, 33, 66, 0.85); color: var(--muted);
+      border: 1px solid var(--line);
+    }
+    #btnStop:hover { color: #fff; border-color: var(--accent); }
+    #menu.off { display: none; }
+    #editor { display: none; min-height: 100vh; flex-direction: column; }
+    #editor.on { display: flex; }
+    #edToolbar {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+    }
+    #edToolbar select {
+      background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 8px; padding: 8px; font-size: 13px;
+    }
+    #edCanvas { display: grid; place-items: center; flex: 1; }
+    dialog {
+      background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 14px; padding: 20px; width: min(560px, 90vw);
+    }
+    dialog::backdrop { background: rgba(0,0,0,0.6); animation: backdropIn 0.5s ease; }
+    dialog[open] { animation: dlgIn 0.5s cubic-bezier(0.18, 0.9, 0.32, 1.15); }
+    @keyframes dlgIn {
+      from { opacity: 0; transform: scale(0.82) translateY(26px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+    dialog textarea {
+      width: 100%; height: 180px; background: var(--bg); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+      font-family: monospace; font-size: 12px; resize: vertical;
+    }
+    .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; font-size: 15px; margin: 14px 0; }
+    .stats div { display: flex; justify-content: space-between; }
+    .stats .k { color: var(--muted); }
+    #grade { font-size: 64px; font-weight: 800; text-align: center; color: var(--ok); margin: 4px 0 10px; }
+    .hidden { display: none !important; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="floaters" aria-hidden="true"><span>🎸</span><span>🎤</span><span>🎧</span><span>🥁</span><span>🎶</span><span>🎹</span></div>
+
+  <div id="menu">
+    <h1>🎧 BEAT<span class="accent">7</span> <span class="eq"><i></i><i></i><i></i><i></i><i></i></span></h1>
+    <p class="sub">Rock 🎸 · Rap 🎤 · DJ 🎧 — ride the beat. Upload an MP3, auto-generate a chart, play. Keys: <span class="keys" id="keysHint">S D F [Space] J K L</span> · ESC quits</p>
+
+    <div class="card">
+      <h2>🎵 1 · Song</h2>
+      <div class="row">
+        <button id="btnFile">Upload MP3</button>
+        <button id="btnDemo" class="ghost">Use built-in demo song</button>
+        <input type="file" id="fileInput" accept="audio/*" class="hidden" />
+      </div>
+      <div id="progressBar"><div></div></div>
+      <div id="status"></div>
+      <div id="songInfo"></div>
+    </div>
+
+    <div class="card">
+      <h2>🎼 2 · Chart</h2>
+      <div class="row" style="margin-bottom:12px">
+        <div class="seg" id="keySeg">
+          <button data-k="4">4K</button>
+          <button data-k="5">5K</button>
+          <button data-k="7" class="on">7K</button>
+        </div>
+        <div class="seg" id="diffSeg">
+          <button data-d="easy">Easy</button>
+          <button data-d="medium" class="on">Medium</button>
+          <button data-d="hard">Hard</button>
+        </div>
+        <button id="btnRegen" class="ghost" disabled>Regenerate</button>
+      </div>
+      <div class="row">
+        <button id="btnNew" class="ghost" disabled>🆕 New chart</button>
+        <button id="btnEdit" class="ghost" disabled>✏️ Edit chart</button>
+        <button id="btnExport" class="ghost" disabled>Export chart</button>
+        <button id="btnImport" class="ghost">Import chart</button>
+        <input type="file" id="chartInput" accept=".json,application/json" class="hidden" />
+      </div>
+      <p class="hint"><b>✏️ Edit chart</b>: place, drag and record your own notes — or start clean with <b>🆕 New chart</b>.</p>
+    </div>
+
+    <div class="card">
+      <h2>🕹️ 3 · Play</h2>
+      <div class="row" style="margin-bottom:12px">
+        <div class="seg" id="modeSeg">
+          <button data-m="chill">🧘 Chill</button>
+          <button data-m="audition" class="on">🎤 Audition</button>
+        </div>
+      </div>
+      <p class="hint" style="margin:-4px 0 12px"><b>🧘 Chill</b>: just vibe — no power bar, no fail. <b>🎤 Audition</b>: hits fill the side power bar, misses drain it — empty means you're dropped out. Keep a hot streak to hit the <b style="color:#ffd700">GOLDEN BUZZER</b>: golden stage &amp; double score!</p>
+      <div class="row" style="margin-bottom:12px">
+        <label class="opt">Speed <input type="range" id="speed" min="0.5" max="6" step="0.25" value="2.5" /> <span class="val" id="speedVal">2.5x</span></label>
+        <label class="opt">Offset <input type="range" id="offset" min="-300" max="300" step="5" value="0" /> <span class="val" id="offsetVal">0 ms</span></label>
+        <label class="opt"><input type="checkbox" id="autoplay" /> Autoplay</label>
+      </div>
+      <div class="row">
+        <button id="btnPlay" class="big" disabled>▶ PLAY</button>
+        <button id="btnCalibrate" class="ghost">🎯 Calibrate offset</button>
+      </div>
+      <p class="hint">If hits feel off (headphones, Bluetooth), run calibration once: tap any key along with the clicks and the offset is set for you. In game, GOOD/BAD hits show <b>EARLY</b>/<b>LATE</b>, and <b>↑/↓</b> changes note speed live.</p>
+    </div>
+  </div>
+
+  <div id="game">
+    <button id="btnStop">■ Stop</button>
+    <div id="gameCanvas"></div>
+  </div>
+
+  <div id="editor">
+    <div id="edToolbar">
+      <button id="edBack" class="ghost">✓ Done</button>
+      <button id="edPlayBtn">▶ Play</button>
+      <select id="edRate">
+        <option value="1" selected>1x</option>
+        <option value="0.75">0.75x</option>
+        <option value="0.5">0.5x</option>
+      </select>
+      <select id="edSnap">
+        <option value="1">1/4</option>
+        <option value="2">1/8</option>
+        <option value="4" selected>1/16</option>
+      </select>
+      <button id="edZoomOut" class="ghost">−</button>
+      <button id="edZoomIn" class="ghost">+</button>
+      <label class="opt" style="color:#ff8aa8"><input type="checkbox" id="edRecord" /> ● Record</label>
+      <button id="edUndo" class="ghost">↩ Undo</button>
+      <span id="edTime" class="val" style="min-width:90px">0:00.000</span>
+      <input type="range" id="edSeek" min="0" max="1000" value="0" style="flex:1;min-width:120px" />
+      <span id="edCount" class="val"></span>
+      <button id="edSave" class="ghost">⬇ Download</button>
+    </div>
+    <p class="hint" style="text-align:center;margin:6px 0">
+      Click empty lane = add note (keep dragging up = long note) · drag note = move · drag ● tail = resize · right-click = delete ·
+      <b>Record</b>: play + press lane keys (hold = long note) · Enter = play/pause · wheel = scroll · Ctrl+Z = undo · Esc = done
+    </p>
+    <div id="edCanvas"></div>
+  </div>
+
+  <dialog id="resultsDlg">
+    <h2 id="resultTitle" style="margin:0;text-align:center">RESULT</h2>
+    <div id="grade">A</div>
+    <div class="stats">
+      <div><span class="k">Score</span><span id="rScore">0</span></div>
+      <div><span class="k">Accuracy</span><span id="rAcc">0%</span></div>
+      <div><span class="k">Cool</span><span id="rCool">0</span></div>
+      <div><span class="k">Good</span><span id="rGood">0</span></div>
+      <div><span class="k">Bad</span><span id="rBad">0</span></div>
+      <div><span class="k">Miss</span><span id="rMiss">0</span></div>
+      <div><span class="k">Max combo</span><span id="rCombo">0</span></div>
+    </div>
+    <div class="row" style="justify-content:center">
+      <button id="btnRetry">Retry</button>
+      <button id="btnBack" class="ghost">Back to menu</button>
+    </div>
+  </dialog>
+
+  <dialog id="calDlg">
+    <h2 style="margin:0 0 10px">🎯 Offset calibration</h2>
+    <p class="hint" style="margin-top:0">Tap <b>any key</b> exactly on each click. The first 4 clicks are warm-up. 12 taps needed.</p>
+    <div id="calStatus" style="font-size:28px;text-align:center;margin:18px 0;font-family:monospace">Get ready…</div>
+    <div class="row" style="justify-content:flex-end">
+      <button id="btnCalCancel" class="ghost">Cancel</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
