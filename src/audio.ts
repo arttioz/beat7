@@ -5,6 +5,8 @@
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private source: AudioBufferSourceNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private levelBuf: Uint8Array<ArrayBuffer> | null = null;
   buffer: AudioBuffer | null = null;
   /** ctx time at which audio sample 0 plays (song time zero) */
   private zeroTime = 0;
@@ -42,7 +44,14 @@ export class AudioEngine {
     this.source = ctx.createBufferSource();
     this.source.buffer = this.buffer;
     this.source.playbackRate.value = rate;
-    this.source.connect(ctx.destination);
+    // route through an analyser so visuals can follow the live waveform
+    if (!this.analyser) {
+      this.analyser = ctx.createAnalyser();
+      this.analyser.fftSize = 1024;
+      this.levelBuf = new Uint8Array(this.analyser.fftSize);
+      this.analyser.connect(ctx.destination);
+    }
+    this.source.connect(this.analyser);
     const raw = (ctx as AudioContext & { outputLatency?: number }).outputLatency ?? 0;
     this.latencySec = Number.isFinite(raw) ? Math.min(0.3, Math.max(0, raw)) : 0;
     const startAt = ctx.currentTime + 0.05;
@@ -71,6 +80,18 @@ export class AudioEngine {
 
   get durationMs(): number {
     return this.buffer ? this.buffer.duration * 1000 : 0;
+  }
+
+  /** Instantaneous RMS loudness (~0..0.5) of what is playing right now. */
+  get level(): number {
+    if (!this.analyser || !this.levelBuf || !this.playing) return 0;
+    this.analyser.getByteTimeDomainData(this.levelBuf);
+    let sum = 0;
+    for (let i = 0; i < this.levelBuf.length; i++) {
+      const v = (this.levelBuf[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / this.levelBuf.length);
   }
 }
 

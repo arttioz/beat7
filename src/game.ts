@@ -94,6 +94,9 @@ export class Game {
   private beatPulseG = new Graphics();
   private particles: Particle[] = [];
   private holdSparkTimer = 0;
+  /** smoothed live loudness (0..1) — visuals follow the actual sound wave */
+  private audioLevel = 0;
+  private levelPeak = 0.12;
   private notes: RtNote[] = [];
   private chart!: Chart;
   private audio!: AudioEngine;
@@ -776,14 +779,19 @@ export class Game {
       }
     }
 
-    // background pulse on every beat (gold during golden time)
-    const beatMs = 60000 / this.chart.bpm;
-    const phase = ((t - this.chart.offsetMs) % beatMs + beatMs) % beatMs;
-    const pulse = Math.max(0, 1 - phase / (beatMs * 0.4));
+    // background pulse follows the LIVE waveform (RMS), not a fixed beat grid,
+    // so it stays in sync even when the song's tempo drifts
+    const raw = this.audio.level;
+    this.levelPeak = Math.max(this.levelPeak * (1 - dtMs / 12000), raw, 0.1);
+    const target = Math.min(1, raw / this.levelPeak);
+    this.audioLevel = target > this.audioLevel
+      ? this.audioLevel + (target - this.audioLevel) * Math.min(1, dtMs / 40) // fast attack
+      : this.audioLevel * Math.max(0, 1 - dtMs / 320); // gentle release
+    const pulse = this.audioLevel;
     const pulseColor = this.golden ? GOLD : 0xff4d88;
     const bp = this.beatPulseG;
     bp.clear();
-    if (pulse > 0.01 && t > 0) {
+    if (pulse > 0.02 && t > 0) {
       const fieldW = this.laneW * this.lanes;
       const fieldX = this.laneX[0];
       bp.rect(fieldX, 0, fieldW, this.hitY).fill({ color: pulseColor, alpha: pulse * (this.golden ? 0.07 : 0.045) });
@@ -881,9 +889,10 @@ export class Game {
       this.goldenAge += dtMs;
       const burst = Math.max(0, 1 - this.goldenAge / 900);
       this.goldenBanner.scale.set(1 + burst * 0.8);
-      this.goldenBanner.alpha = this.goldenAge < 2600 ? 1 : 0.55 + 0.2 * Math.sin(this.goldenAge / 300);
+      this.goldenBanner.alpha = this.goldenAge < 2600 ? 1 : 0.5 + 0.3 * this.audioLevel;
       this.comboText.style.fill = 0xffd700;
-      this.goldenBgG.alpha = 0.8 + 0.2 * Math.sin(this.goldenAge / 250);
+      // the golden glow breathes with the actual music, not a fixed timer
+      this.goldenBgG.alpha = 0.5 + 0.5 * this.audioLevel;
     }
     this.comboText.text = this.combo >= 2 ? String(this.combo) : '';
     this.comboText.scale.set(1 + 0.15 * k);
