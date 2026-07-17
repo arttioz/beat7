@@ -109,6 +109,8 @@ export class Game {
   private pxPerMs = 1;
   private held: boolean[] = [];
 
+  /** when the run actually ends — never earlier than the last note */
+  private songEndMs = 0;
   private counts = { cool: 0, good: 0, bad: 0, miss: 0 };
   private combo = 0;
   private maxCombo = 0;
@@ -166,6 +168,9 @@ export class Game {
     this.held = new Array(this.lanes).fill(false);
     this.totalJudgments = chart.notes.reduce((s, n) => s + (n.len > 0 ? 2 : 1), 0);
     this.goldenComboTarget = Math.min(60, Math.max(10, Math.round(this.totalJudgments * 0.3)));
+    // guard against a bad/mutated durationMs: the song can never end before the last note
+    const lastNoteEnd = chart.notes.reduce((m, n) => Math.max(m, n.t + n.len), 0);
+    this.songEndMs = Math.max(chart.durationMs, lastNoteEnd + 500);
 
     // fill the whole viewport height
     const width = 560;
@@ -789,7 +794,7 @@ export class Game {
 
     const width = this.app.screen.width;
     this.progress.clear();
-    this.progress.rect(0, 0, width * Math.max(0, Math.min(1, t / this.chart.durationMs)), 4).fill(0xff4d88);
+    this.progress.rect(0, 0, width * Math.max(0, Math.min(1, t / this.songEndMs)), 4).fill(0xff4d88);
 
     // audition: power empty → screen shatters, then results
     if (this.pendingDropOut && this.ending === 'none' && !this.finished) {
@@ -798,7 +803,7 @@ export class Game {
     }
 
     // song complete → CLEAR! + fireworks, then results
-    if (this.ending === 'none' && !this.finished && t > this.chart.durationMs + 800) {
+    if (this.ending === 'none' && !this.finished && t > this.songEndMs + 800) {
       this.startClearEnding();
     }
     if (this.ending === 'clear') {
