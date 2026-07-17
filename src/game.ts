@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
+import { Application, BlurFilter, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { AudioEngine } from './audio';
 import type { Chart, Judgment, Note, PlayMode, PlayStats } from './types';
 
@@ -130,6 +130,14 @@ export class Game {
   private goldenBgG = new Graphics();
   private goldenBanner!: Text;
   private goldSparkTimer = 0;
+
+  // fire-glow + orbiting-particles treatment for effect text
+  private textFxG = new Graphics();
+  private judgeGlow!: Text;
+  private endingGlow!: Text;
+  private bannerGlow!: Text;
+  private fxTime = 0;
+  private emberTimer = 0;
 
   // ending sequence (smooth transition into results)
   private ending: 'none' | 'clear' | 'break' = 'none';
@@ -263,6 +271,8 @@ export class Game {
     });
     this.judgeText.anchor.set(0.5);
     this.judgeText.position.set(width / 2, this.hitY - 180);
+    this.judgeGlow = this.makeFireGlow(40);
+    this.app.stage.addChild(this.judgeGlow);
     this.app.stage.addChild(this.judgeText);
 
     this.timingText = new Text({
@@ -304,6 +314,8 @@ export class Game {
     this.goldenBanner.anchor.set(0.5);
     this.goldenBanner.position.set(width / 2, this.hitY - 320);
     this.goldenBanner.visible = false;
+    this.bannerGlow = this.makeFireGlow(36);
+    this.app.stage.addChild(this.bannerGlow);
     this.app.stage.addChild(this.goldenBanner);
 
     this.endingText = new Text({
@@ -316,10 +328,77 @@ export class Game {
     this.endingText.anchor.set(0.5);
     this.endingText.position.set(width / 2, height * 0.4);
     this.endingText.visible = false;
+    this.endingGlow = this.makeFireGlow(72);
+    this.app.stage.addChild(this.endingGlow);
     this.app.stage.addChild(this.endingText);
+
+    // orbiting particles render above all effect text
+    this.app.stage.addChild(this.textFxG);
 
     this.progress = new Graphics();
     this.app.stage.addChild(this.progress);
+  }
+
+  /** blurred warm copy rendered behind a text — the "fire" layer */
+  private makeFireGlow(fontSize: number): Text {
+    const glow = new Text({
+      text: '',
+      style: new TextStyle({ fill: 0xff7a1a, fontSize, fontWeight: 'bold', fontFamily: 'monospace' }),
+    });
+    glow.anchor.set(0.5);
+    glow.filters = [new BlurFilter({ strength: 9 })];
+    glow.blendMode = 'add';
+    glow.visible = false;
+    return glow;
+  }
+
+  /** flickering flame sync: the glow breathes and shivers behind its text */
+  private syncFireGlow(glow: Text, target: Text): void {
+    const on = target.visible && target.alpha > 0.02 && target.text !== '';
+    glow.visible = on;
+    if (!on) return;
+    if (glow.text !== target.text) glow.text = target.text;
+    glow.position.copyFrom(target.position);
+    const flick =
+      0.6 + 0.25 * Math.sin(this.fxTime / 83) * Math.sin(this.fxTime / 47) + 0.15 * Math.sin(this.fxTime / 210);
+    glow.scale.set(target.scale.x * (1.08 + 0.06 * flick));
+    glow.alpha = target.alpha * (0.5 + 0.45 * flick);
+  }
+
+  /** glowing dots circling a text on elliptical paths at varying speeds */
+  private drawOrbits(cx: number, cy: number, r: number, alpha: number, seed: number): void {
+    const ORBIT_COLORS = [0x7dffce, 0x4dd8ff, 0xb14dff, 0xff4d88, 0xffd700];
+    const g = this.textFxG;
+    for (let i = 0; i < 8; i++) {
+      const speed = 1.1 + (i % 3) * 0.5;
+      const a = (this.fxTime / 1000) * speed + i * (Math.PI / 4) + seed;
+      const rx = r * (1 + 0.16 * Math.sin(this.fxTime / 640 + i * 1.7));
+      const x = cx + Math.cos(a) * rx;
+      const y = cy + Math.sin(a) * rx * 0.3;
+      const c = ORBIT_COLORS[i % ORBIT_COLORS.length];
+      const s = 1.8 + 1.1 * (0.5 + 0.5 * Math.sin(a * 2 + i));
+      g.circle(x, y, s * 2.4).fill({ color: c, alpha: alpha * 0.16 }); // halo
+      g.circle(x, y, s).fill({ color: c, alpha });
+    }
+  }
+
+  /** embers rising off burning text */
+  private spawnEmbers(x: number, y: number, spread: number, count: number): void {
+    if (this.particles.length > 280) return;
+    const FIRE = [0xff6a00, 0xffa94d, 0xffd700, 0xff4d2a];
+    for (let i = 0; i < count; i++) {
+      const life = 380 + Math.random() * 320;
+      this.particles.push({
+        kind: 'spark',
+        x: x + (Math.random() - 0.5) * spread,
+        y: y + (Math.random() - 0.5) * 16,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: -1.2 - Math.random() * 1.8,
+        life, maxLife: life,
+        color: FIRE[Math.floor(Math.random() * FIRE.length)],
+        size: 1.3 + Math.random() * 1.8,
+      });
+    }
   }
 
   private onKey(e: KeyboardEvent, down: boolean): void {
@@ -422,6 +501,7 @@ export class Game {
       this.judgeText.style.fill = s.color;
       this.timingText.text = '';
       this.judgeAge = 0;
+      if (j !== 'miss') this.spawnEmbers(this.judgeText.x, this.judgeText.y, this.judgeText.width, 3);
     }
   }
 
@@ -772,6 +852,28 @@ export class Game {
     this.timingText.alpha = this.judgeText.alpha;
     this.speedAge += dtMs;
     this.speedText.style.fill = this.speedAge < 800 ? 0xffe066 : 0x8a90c0;
+
+    // fire glow + orbiting particles on effect text
+    this.fxTime += dtMs;
+    this.textFxG.clear();
+    this.syncFireGlow(this.judgeGlow, this.judgeText);
+    this.syncFireGlow(this.endingGlow, this.endingText);
+    this.syncFireGlow(this.bannerGlow, this.goldenBanner);
+    if (this.judgeGlow.visible) {
+      this.drawOrbits(this.judgeText.x, this.judgeText.y, this.judgeText.width * 0.62 + 26, this.judgeText.alpha, 0);
+    }
+    if (this.endingGlow.visible) {
+      this.drawOrbits(this.endingText.x, this.endingText.y, this.endingText.width * 0.58 + 30, this.endingText.alpha, 2.1);
+    }
+    if (this.bannerGlow.visible) {
+      this.drawOrbits(this.goldenBanner.x, this.goldenBanner.y, this.goldenBanner.width * 0.58 + 22, this.goldenBanner.alpha * 0.8, 4.4);
+    }
+    this.emberTimer -= dtMs;
+    if (this.emberTimer <= 0) {
+      this.emberTimer = 140;
+      if (this.endingGlow.visible) this.spawnEmbers(this.endingText.x, this.endingText.y, this.endingText.width, 2);
+      if (this.bannerGlow.visible) this.spawnEmbers(this.goldenBanner.x, this.goldenBanner.y, this.goldenBanner.width, 1);
+    }
 
     // audition HUD animation
     if (this.opts.mode === 'audition') this.drawPowerBar();
