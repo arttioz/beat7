@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { AudioEngine } from './audio';
 import { KEY_SETS } from './game';
+import { getKeyCodes, labelFor } from './keys';
 import type { Chart, Note } from './types';
 
 /**
@@ -64,7 +65,7 @@ export class Editor {
     this.notes = chart.notes.map((n) => ({ ...n }));
     const ks = KEY_SETS[chart.keys] ?? KEY_SETS[7];
     this.lanes = ks.codes.length;
-    this.codes = ks.codes;
+    this.codes = getKeyCodes(chart.keys);
     this.colors = ks.colors;
     this.laneW = ks.laneW;
 
@@ -89,7 +90,7 @@ export class Editor {
     // lane key labels under the now line
     const keyStyle = new TextStyle({ fill: 0x8a90c0, fontSize: 15, fontWeight: 'bold', fontFamily: 'monospace' });
     for (let i = 0; i < this.lanes; i++) {
-      const label = new Text({ text: ks.labels[i], style: keyStyle });
+      const label = new Text({ text: labelFor(this.codes[i]), style: keyStyle });
       label.anchor.set(0.5);
       label.position.set(this.fieldX + (i + 0.5) * this.laneW, this.nowY + 24);
       this.app.stage.addChild(label);

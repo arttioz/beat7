@@ -75,6 +75,13 @@ const en: Record<string, string> = {
   stCalibrated: 'Calibrated: offset set to {ms}ms from {taps} taps.',
   stNewChart: 'New empty chart — record or place your own notes.',
   stImported: 'Chart imported.',
+  setupKeys: '⌨ Setup keys',
+  keysTitle: '⌨ Key setup',
+  keysInstr: 'Click a lane, then press the keyboard key you want for it. Picking a key that is already used swaps the two lanes.',
+  keysPress: 'Press a key…',
+  keysReset: 'Reset to defaults',
+  close: 'Close',
+  touchHint: '📱 Tap or hold the lanes on screen',
 };
 
 const STRINGS: Record<Lang, Record<string, string>> = {
@@ -108,6 +115,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: '已生成 {mode} 谱面。', stEdited: '谱面已编辑 — {n} 个音符。',
     stCalibrated: '校准完成：根据 {taps} 次按键将偏移设为 {ms}ms。',
     stNewChart: '新的空白谱面 — 录制或放置你自己的音符。', stImported: '谱面已导入。',
+    setupKeys: '⌨ 按键设置', keysTitle: '⌨ 按键设置',
+    keysInstr: '点击一个轨道，然后按下你想使用的键盘按键。选择已被占用的按键时，两个轨道会互换。',
+    keysPress: '请按一个键…', keysReset: '恢复默认', close: '关闭',
+    touchHint: '📱 点按或长按屏幕上的轨道即可游玩',
   },
   es: {
     tagline: 'Rock 🎸 · Rap 🎤 · DJ 🎧 — sigue el ritmo. Sube un MP3, genera el mapa automáticamente y juega. Teclas:',
@@ -138,6 +149,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: 'Mapa {mode} generado.', stEdited: 'Mapa editado — {n} notas.',
     stCalibrated: 'Calibrado: desfase de {ms}ms con {taps} pulsaciones.',
     stNewChart: 'Mapa vacío nuevo — graba o coloca tus propias notas.', stImported: 'Mapa importado.',
+    setupKeys: '⌨ Configurar teclas', keysTitle: '⌨ Configuración de teclas',
+    keysInstr: 'Haz clic en un carril y pulsa la tecla que quieras. Si eliges una tecla ya usada, los dos carriles se intercambian.',
+    keysPress: 'Pulsa una tecla…', keysReset: 'Restablecer', close: 'Cerrar',
+    touchHint: '📱 Toca o mantén pulsados los carriles en pantalla',
   },
   hi: {
     tagline: 'रॉक 🎸 · रैप 🎤 · डीजे 🎧 — बीट पर चलें। MP3 अपलोड करें, चार्ट अपने आप बनाएँ, खेलें। कुंजियाँ:',
@@ -168,6 +183,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: '{mode} चार्ट बन गया।', stEdited: 'चार्ट संपादित — {n} नोट।',
     stCalibrated: 'कैलिब्रेट हुआ: {taps} टैप से ऑफ़सेट {ms}ms सेट।',
     stNewChart: 'नया खाली चार्ट — अपने नोट रिकॉर्ड करें या रखें।', stImported: 'चार्ट आयात हुआ।',
+    setupKeys: '⌨ कुंजी सेटअप', keysTitle: '⌨ कुंजी सेटअप',
+    keysInstr: 'एक लेन पर क्लिक करें, फिर मनचाही कुंजी दबाएँ। पहले से उपयोग में ली गई कुंजी चुनने पर दोनों लेन आपस में बदल जाएँगी।',
+    keysPress: 'कोई कुंजी दबाएँ…', keysReset: 'डिफ़ॉल्ट पर रीसेट', close: 'बंद करें',
+    touchHint: '📱 स्क्रीन पर लेन को टैप करें या दबाए रखें',
   },
   fr: {
     tagline: 'Rock 🎸 · Rap 🎤 · DJ 🎧 — suis le beat. Charge un MP3, génère la partition automatiquement, joue. Touches :',
@@ -198,6 +217,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: 'Partition {mode} générée.', stEdited: 'Partition modifiée — {n} notes.',
     stCalibrated: 'Calibré : décalage réglé à {ms}ms sur {taps} frappes.',
     stNewChart: 'Nouvelle partition vide — enregistre ou place tes notes.', stImported: 'Partition importée.',
+    setupKeys: '⌨ Configurer les touches', keysTitle: '⌨ Configuration des touches',
+    keysInstr: 'Clique sur une piste puis appuie sur la touche voulue. Choisir une touche déjà utilisée échange les deux pistes.',
+    keysPress: 'Appuie sur une touche…', keysReset: 'Réinitialiser', close: 'Fermer',
+    touchHint: '📱 Touche ou maintiens les pistes à l\'écran',
   },
   pt: {
     tagline: 'Rock 🎸 · Rap 🎤 · DJ 🎧 — siga a batida. Envie um MP3, gere o mapa automaticamente e jogue. Teclas:',
@@ -228,6 +251,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: 'Mapa {mode} gerado.', stEdited: 'Mapa editado — {n} notas.',
     stCalibrated: 'Calibrado: ajuste definido em {ms}ms com {taps} toques.',
     stNewChart: 'Novo mapa vazio — grave ou coloque suas notas.', stImported: 'Mapa importado.',
+    setupKeys: '⌨ Configurar teclas', keysTitle: '⌨ Configuração de teclas',
+    keysInstr: 'Clique em uma pista e pressione a tecla desejada. Escolher uma tecla já usada troca as duas pistas.',
+    keysPress: 'Pressione uma tecla…', keysReset: 'Restaurar padrão', close: 'Fechar',
+    touchHint: '📱 Toque ou segure as pistas na tela',
   },
   ru: {
     tagline: 'Рок 🎸 · Рэп 🎤 · DJ 🎧 — лови ритм. Загрузи MP3, сгенерируй карту автоматически и играй. Клавиши:',
@@ -258,6 +285,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: 'Карта {mode} создана.', stEdited: 'Карта изменена — {n} нот.',
     stCalibrated: 'Откалибровано: смещение {ms}мс по {taps} нажатиям.',
     stNewChart: 'Новая пустая карта — записывай или расставляй свои ноты.', stImported: 'Карта импортирована.',
+    setupKeys: '⌨ Настройка клавиш', keysTitle: '⌨ Настройка клавиш',
+    keysInstr: 'Нажми на дорожку, затем нажми нужную клавишу. Если клавиша уже занята, дорожки поменяются местами.',
+    keysPress: 'Нажми клавишу…', keysReset: 'Сбросить', close: 'Закрыть',
+    touchHint: '📱 Касайся или удерживай дорожки на экране',
   },
   ja: {
     tagline: 'ロック 🎸 · ラップ 🎤 · DJ 🎧 — ビートに乗ろう。MP3をアップロードして譜面を自動生成、プレイ。キー：',
@@ -288,6 +319,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: '{mode} 譜面を生成しました。', stEdited: '譜面を編集 — {n} ノーツ。',
     stCalibrated: '調整完了：{taps} 回のタップからオフセットを {ms}ms に設定。',
     stNewChart: '新しい空の譜面 — 録音するか自分でノーツを置こう。', stImported: '譜面を読み込みました。',
+    setupKeys: '⌨ キー設定', keysTitle: '⌨ キー設定',
+    keysInstr: 'レーンをクリックして、使いたいキーを押してください。使用中のキーを選ぶと、2つのレーンが入れ替わります。',
+    keysPress: 'キーを押してください…', keysReset: 'デフォルトに戻す', close: '閉じる',
+    touchHint: '📱 画面のレーンをタップ／長押しでプレイ',
   },
   de: {
     tagline: 'Rock 🎸 · Rap 🎤 · DJ 🎧 — reite den Beat. Lade ein MP3 hoch, generiere die Chart automatisch und spiele. Tasten:',
@@ -318,6 +353,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: '{mode}-Chart generiert.', stEdited: 'Chart bearbeitet — {n} Noten.',
     stCalibrated: 'Kalibriert: Versatz auf {ms}ms aus {taps} Taps gesetzt.',
     stNewChart: 'Neue leere Chart — nimm Noten auf oder platziere sie selbst.', stImported: 'Chart importiert.',
+    setupKeys: '⌨ Tasten einstellen', keysTitle: '⌨ Tasten-Setup',
+    keysInstr: 'Klicke auf eine Spur und drücke die gewünschte Taste. Eine bereits belegte Taste tauscht die beiden Spuren.',
+    keysPress: 'Taste drücken…', keysReset: 'Zurücksetzen', close: 'Schließen',
+    touchHint: '📱 Tippe oder halte die Spuren auf dem Bildschirm',
   },
   ko: {
     tagline: '록 🎸 · 랩 🎤 · DJ 🎧 — 비트를 타자. MP3를 업로드하면 채보가 자동 생성됩니다. 키:',
@@ -348,6 +387,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: '{mode} 채보 생성 완료.', stEdited: '채보 편집됨 — {n} 노트.',
     stCalibrated: '보정 완료: {taps}회 탭으로 오프셋 {ms}ms 설정.',
     stNewChart: '새 빈 채보 — 직접 녹음하거나 노트를 배치하세요.', stImported: '채보를 가져왔습니다.',
+    setupKeys: '⌨ 키 설정', keysTitle: '⌨ 키 설정',
+    keysInstr: '레인을 클릭한 뒤 원하는 키를 누르세요. 이미 사용 중인 키를 고르면 두 레인이 서로 바뀝니다.',
+    keysPress: '키를 누르세요…', keysReset: '기본값으로', close: '닫기',
+    touchHint: '📱 화면의 레인을 탭하거나 길게 눌러 플레이',
   },
   th: {
     tagline: 'ร็อก 🎸 · แร็ป 🎤 · ดีเจ 🎧 — ไปกับจังหวะ อัปโหลด MP3 สร้างโน้ตอัตโนมัติ แล้วเล่นเลย ปุ่ม:',
@@ -378,6 +421,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     stGenerated: 'สร้างชาร์ต {mode} แล้ว', stEdited: 'แก้ไขชาร์ตแล้ว — {n} โน้ต',
     stCalibrated: 'ปรับแล้ว: ตั้งออฟเซ็ตเป็น {ms}ms จากการกด {taps} ครั้ง',
     stNewChart: 'ชาร์ตว่างใหม่ — อัดหรือวางโน้ตของคุณเอง', stImported: 'นำเข้าชาร์ตแล้ว',
+    setupKeys: '⌨ ตั้งค่าปุ่ม', keysTitle: '⌨ ตั้งค่าปุ่ม',
+    keysInstr: 'คลิกเลนที่ต้องการ แล้วกดปุ่มคีย์บอร์ดที่อยากใช้ ถ้าเลือกปุ่มที่ใช้อยู่แล้ว สองเลนจะสลับกัน',
+    keysPress: 'กดปุ่ม…', keysReset: 'รีเซ็ตเป็นค่าเริ่มต้น', close: 'ปิด',
+    touchHint: '📱 แตะหรือกดค้างที่เลนบนหน้าจอเพื่อเล่น',
   },
 };
 

@@ -134,6 +134,11 @@
       border: 1px solid var(--line); border-radius: 8px; padding: 10px;
       font-family: monospace; font-size: 12px; resize: vertical;
     }
+    .keybtn {
+      min-width: 52px; min-height: 48px; font-family: monospace; font-size: 17px;
+      background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+    }
+    .keybtn.capture { background: var(--accent); color: #fff; animation: btnPulse 1s infinite; }
     .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; font-size: 15px; margin: 14px 0; }
     .stats div { display: flex; justify-content: space-between; }
     .stats .k { color: var(--muted); }
@@ -205,6 +210,7 @@
       <div class="row">
         <button id="btnPlay" class="big" disabled data-i18n="playBtn">▶ PLAY</button>
         <button id="btnCalibrate" class="ghost" data-i18n="calibrate">🎯 Calibrate offset</button>
+        <button id="btnKeys" class="ghost" data-i18n="setupKeys">⌨ Setup keys</button>
       </div>
       <p class="hint" data-i18n="calHint">If hits feel off (headphones, Bluetooth), run calibration once: tap any key along with the clicks and the offset is set for you. In game, GOOD/BAD hits show <b>EARLY</b>/<b>LATE</b>, and <b>↑/↓</b> changes note speed live.</p>
     </div>
@@ -260,6 +266,16 @@
     <div class="row" style="justify-content:center">
       <button id="btnRetry" data-i18n="retry">Retry</button>
       <button id="btnBack" class="ghost" data-i18n="backToMenu">Back to menu</button>
+    </div>
+  </dialog>
+
+  <dialog id="keysDlg">
+    <h2 style="margin:0 0 10px" data-i18n="keysTitle">⌨ Key setup</h2>
+    <p class="hint" style="margin-top:0" data-i18n="keysInstr">Click a lane, then press the keyboard key you want for it. Picking a key that is already used swaps the two lanes.</p>
+    <div class="row" id="keysRow" style="justify-content:center;margin:16px 0"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button id="btnKeysReset" class="ghost" data-i18n="keysReset">Reset to defaults</button>
+      <button id="btnKeysClose" data-i18n="close">Close</button>
     </div>
   </dialog>
 

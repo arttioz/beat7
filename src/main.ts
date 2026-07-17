@@ -6,6 +6,7 @@ import { renderDemoSong } from './demo';
 import { Editor } from './editor';
 import { Game } from './game';
 import { LANGS, applyTranslations, getLang, setLang, t } from './i18n';
+import { getKeyCodes, isTouchDevice, labelFor, resetKeyCodes, setKeyCode } from './keys';
 import { generateChart } from './generator';
 import type { Analysis, Chart, Difficulty, KeyCount, PlayMode, PlayStats } from './types';
 
@@ -21,11 +22,10 @@ let keyCount: KeyCount = 7;
 let playMode: PlayMode = 'audition';
 let game: Game | null = null;
 
-const KEY_HINTS: Record<KeyCount, string> = {
-  4: 'D F J K',
-  5: 'D F [Space] J K',
-  7: 'S D F [Space] J K L',
-};
+function keysHintText(): string {
+  const keyList = getKeyCodes(keyCount).map(labelFor).join(' ');
+  return isTouchDevice() ? `${t('touchHint')} · ${keyList}` : keyList;
+}
 
 // language picker: populate, restore saved/auto-detected choice, retranslate on change
 const langSel = $('#langSel') as HTMLSelectElement;
@@ -73,7 +73,7 @@ function showInfo(): void {
 }
 
 function syncModeUi(): void {
-  $('#keysHint').textContent = KEY_HINTS[keyCount];
+  $('#keysHint').textContent = keysHintText();
   document.querySelectorAll('#keySeg button').forEach((b) =>
     b.classList.toggle('on', Number((b as HTMLElement).dataset.k) === keyCount));
   document.querySelectorAll('#diffSeg button').forEach((b) =>
@@ -348,6 +348,52 @@ $('#edSave').addEventListener('click', () => {
   if (!editor || !chart) return;
   downloadChart({ ...chart, notes: editor.finish() });
 });
+
+// --- key setup ------------------------------------------------------------------
+
+const keysDlg = $('#keysDlg') as HTMLDialogElement;
+let captureLane = -1;
+
+function renderKeyButtons(): void {
+  const row = $('#keysRow');
+  row.innerHTML = '';
+  getKeyCodes(keyCount).forEach((code, lane) => {
+    const b = document.createElement('button');
+    b.className = 'keybtn' + (captureLane === lane ? ' capture' : '');
+    b.textContent = captureLane === lane ? '…' : labelFor(code);
+    b.title = captureLane === lane ? t('keysPress') : code;
+    b.addEventListener('click', () => {
+      captureLane = lane;
+      renderKeyButtons();
+    });
+    row.appendChild(b);
+  });
+}
+
+$('#btnKeys').addEventListener('click', () => {
+  captureLane = -1;
+  renderKeyButtons();
+  keysDlg.showModal();
+});
+
+// capture phase: swallow the pressed key before anything else reacts to it
+window.addEventListener('keydown', (e) => {
+  if (!keysDlg.open || captureLane < 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.code !== 'Escape') setKeyCode(keyCount, captureLane, e.code);
+  captureLane = -1;
+  renderKeyButtons();
+  syncModeUi();
+}, true);
+
+$('#btnKeysReset').addEventListener('click', () => {
+  resetKeyCodes(keyCount);
+  captureLane = -1;
+  renderKeyButtons();
+  syncModeUi();
+});
+$('#btnKeysClose').addEventListener('click', () => keysDlg.close());
 
 // --- calibration --------------------------------------------------------------
 

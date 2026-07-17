@@ -1,5 +1,6 @@
 import { Application, BlurFilter, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import type { AudioEngine } from './audio';
+import { getKeyCodes, labelFor } from './keys';
 import type { Chart, Judgment, Note, PlayMode, PlayStats } from './types';
 
 const GOLD = 0xffd700;
@@ -173,8 +174,8 @@ export class Game {
     this.opts = opts;
     const ks = KEY_SETS[chart.keys] ?? KEY_SETS[7];
     this.lanes = ks.codes.length;
-    this.codes = ks.codes;
-    this.labels = ks.labels;
+    this.codes = getKeyCodes(chart.keys);
+    this.labels = this.codes.map(labelFor);
     this.colors = ks.colors;
     this.held = new Array(this.lanes).fill(false);
     this.totalJudgments = chart.notes.reduce((s, n) => s + (n.len > 0 ? 2 : 1), 0);
@@ -183,8 +184,8 @@ export class Game {
     const lastNoteEnd = chart.notes.reduce((m, n) => Math.max(m, n.t + n.len), 0);
     this.songEndMs = Math.max(chart.durationMs, lastNoteEnd + 500);
 
-    // fill the whole viewport height
-    const width = 560;
+    // fill the whole viewport height; shrink to fit phone screens
+    const width = Math.min(560, window.innerWidth);
     const height = Math.max(480, window.innerHeight);
     await this.app.init({
       width, height,
@@ -195,7 +196,7 @@ export class Game {
     });
     host.appendChild(this.app.canvas);
 
-    this.laneW = ks.laneW;
+    this.laneW = Math.min(ks.laneW, Math.floor((width - 16) / this.lanes));
     const fieldW = this.laneW * this.lanes;
     const fieldX = (width - fieldW) / 2;
     this.hitY = height - 110;
@@ -211,6 +212,11 @@ export class Game {
 
     window.addEventListener('keydown', this.keydown);
     window.addEventListener('keyup', this.keyup);
+    // touch mode (auto): tap/hold directly on the lanes
+    this.app.canvas.style.touchAction = 'none';
+    this.app.canvas.addEventListener('pointerdown', this.pointerDown);
+    window.addEventListener('pointerup', this.pointerUp);
+    window.addEventListener('pointercancel', this.pointerUp);
     this.audio.play(2);
     this.app.ticker.add(() => this.update());
   }
@@ -226,6 +232,8 @@ export class Game {
     this.destroyed = true;
     window.removeEventListener('keydown', this.keydown);
     window.removeEventListener('keyup', this.keyup);
+    window.removeEventListener('pointerup', this.pointerUp);
+    window.removeEventListener('pointercancel', this.pointerUp);
     this.audio.stop();
     this.shatterTex?.destroy(true);
     this.shatterTex = null;
@@ -419,12 +427,37 @@ export class Game {
     if (lane < 0) return;
     e.preventDefault();
     if (down && e.repeat) return;
-    if (this.opts.autoplay) { this.held[lane] = down; return; }
 
     // judge at the moment the key event fired, not when the handler ran
     const handlerDelayMs = Math.max(0, Math.min(100, performance.now() - e.timeStamp));
     const t = this.judgeTime() - handlerDelayMs;
-    if (down) {
+    if (down) this.pressLane(lane, t);
+    else this.releaseLane(lane, t);
+  }
+
+  /** touch mode: fingers press/hold lanes directly on the screen */
+  private touches = new Map<number, number>();
+
+  private pointerDown = (e: PointerEvent): void => {
+    if (e.pointerType === 'mouse' || this.destroyed || this.ending !== 'none') return;
+    const rect = this.app.canvas.getBoundingClientRect();
+    const lane = Math.floor((e.clientX - rect.left - this.laneX[0]) / this.laneW);
+    if (lane < 0 || lane >= this.lanes) return;
+    e.preventDefault();
+    this.touches.set(e.pointerId, lane);
+    this.pressLane(lane, this.judgeTime());
+  };
+
+  private pointerUp = (e: PointerEvent): void => {
+    const lane = this.touches.get(e.pointerId);
+    if (lane === undefined) return;
+    this.touches.delete(e.pointerId);
+    if (!this.destroyed) this.releaseLane(lane, this.judgeTime());
+  };
+
+  private pressLane(lane: number, t: number): void {
+    if (this.opts.autoplay) { this.held[lane] = true; return; }
+    {
       this.held[lane] = true;
       this.flashLane(lane, 0.35);
       let best: RtNote | null = null;
@@ -448,7 +481,12 @@ export class Game {
         this.flashLane(lane, 0.7);
         this.spawnHitFx(lane, j);
       }
-    } else {
+    }
+  }
+
+  private releaseLane(lane: number, t: number): void {
+    if (this.opts.autoplay) { this.held[lane] = false; return; }
+    {
       this.held[lane] = false;
       for (const n of this.notes) {
         if (n.lane !== lane || !n.holding) continue;
